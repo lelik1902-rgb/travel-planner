@@ -1,5 +1,7 @@
 """Тести API з підставними відповідями Gemini та OpenStreetMap (без мережі)."""
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -31,7 +33,7 @@ def client(monkeypatch):
         return LVIV
 
     async def fake_generate(request: PlanRequest, city: City):
-        return make_plan(request.days, far_away=True)
+        return make_plan(request.days, far_away=True), "test-model"
 
     monkeypatch.setattr(geocoding, "geocode_city", fake_geocode)
     monkeypatch.setattr(gemini_client, "generate_plan", fake_generate)
@@ -89,7 +91,7 @@ def test_gemini_error_returns_502(client, monkeypatch):
 
 def test_extra_days_from_gemini_are_trimmed(client, monkeypatch):
     async def too_many(request, city):
-        return make_plan(request.days + 2)
+        return make_plan(request.days + 2), "test-model"
 
     monkeypatch.setattr(gemini_client, "generate_plan", too_many)
     data = client.post("/api/plan", json={"city": "Львів", "days": 2}).json()
@@ -100,3 +102,50 @@ def test_prompt_contains_user_preferences():
     request = PlanRequest(city="Львів", days=3, interests=["музеї"], pace="relaxed", budget="low")
     prompt = gemini_client.build_prompt(request, LVIV)
     assert "рівно 3 днів" in prompt and "музеї" in prompt and "економний" in prompt
+
+
+class FakeModels:
+    """Імітує client.aio.models: перша модель перевантажена, друга відповідає."""
+
+    def __init__(self, failures):
+        self.failures = failures
+        self.calls = []
+
+    async def generate_content(self, model, contents, config):
+        self.calls.append(model)
+        code = self.failures.get(model)
+        if code:
+            raise gemini_client.errors.APIError(code, {"error": {"message": "busy", "status": "X"}})
+        return type("R", (), {"text": make_plan(1).model_dump_json()})()
+
+
+def patch_client(monkeypatch, fake):
+    client = type("C", (), {"aio": type("A", (), {"models": fake})()})()
+    monkeypatch.setattr(gemini_client.genai, "Client", lambda api_key: client)
+    async def no_wait(seconds):
+        return None
+
+    monkeypatch.setattr(gemini_client.asyncio, "sleep", no_wait)
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+
+
+def test_falls_back_to_next_model_on_503(monkeypatch):
+    fake = FakeModels({gemini_client.MODELS[0]: 503})
+    patch_client(monkeypatch, fake)
+    plan, model = asyncio.run(gemini_client.generate_plan(PlanRequest(city="Львів", days=1), LVIV))
+    assert model == gemini_client.MODELS[1]
+    assert fake.calls == [gemini_client.MODELS[0]] * 2 + [gemini_client.MODELS[1]]
+
+
+def test_all_models_busy_gives_friendly_error(monkeypatch):
+    patch_client(monkeypatch, FakeModels({m: 503 for m in gemini_client.MODELS}))
+    with pytest.raises(gemini_client.GeminiError, match="перевантажений"):
+        asyncio.run(gemini_client.generate_plan(PlanRequest(city="Львів", days=1), LVIV))
+
+
+def test_bad_key_is_not_retried(monkeypatch):
+    fake = FakeModels({m: 403 for m in gemini_client.MODELS})
+    patch_client(monkeypatch, fake)
+    with pytest.raises(gemini_client.GeminiError, match="GEMINI_API_KEY"):
+        asyncio.run(gemini_client.generate_plan(PlanRequest(city="Львів", days=1), LVIV))
+    assert len(fake.calls) == 1

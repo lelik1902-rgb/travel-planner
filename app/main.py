@@ -37,7 +37,7 @@ async def create_plan(request: PlanRequest) -> PlanResponse:
 
     # 2. Gemini складає маршрут у форматі JSON за нашою схемою.
     try:
-        plan = await gemini_client.generate_plan(request, city)
+        plan, model = await gemini_client.generate_plan(request, city)
     except gemini_client.GeminiError as error:
         raise HTTPException(502, str(error))
 
@@ -55,4 +55,4 @@ async def create_plan(request: PlanRequest) -> PlanResponse:
         raise HTTPException(502, "Gemini не повернув жодного дня маршруту.")
 
     return PlanResponse(city=city, summary=plan.summary, days=days,
-                        tips=plan.tips[:5], model=gemini_client.MODEL)
+                        tips=plan.tips[:5], model=model)
