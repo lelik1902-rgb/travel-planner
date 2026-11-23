@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Планувальник подорожей</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">Gemini API · OpenStreetMap</p>
+    <h1>Куди їдемо?</h1>
+    <p class="lead">Вкажіть місто й інтереси — отримаєте маршрут по днях на мапі.</p>
+  </header>
+
+  <main>
+    <form id="form" class="card">
+      <label class="field wide">
+        <span>Місто</span>
+        <input id="city" name="city" placeholder="Наприклад, Львів" required minlength="2" maxlength="80">
+      </label>
+      <label class="field">
+        <span>Днів</span>
+        <select id="days">
+          <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Темп</span>
+        <select id="pace">
+          <option value="relaxed">Спокійний</option>
+          <option value="normal" selected>Звичайний</option>
+          <option value="intense">Насичений</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Бюджет</span>
+        <select id="budget">
+          <option value="low">Економний</option>
+          <option value="medium" selected>Середній</option>
+          <option value="high">Без обмежень</option>
+        </select>
+      </label>
+      <fieldset class="field wide">
+        <span>Інтереси</span>
+        <div class="chips" id="interests">
+          <label><input type="checkbox" value="історія"><span>Історія</span></label>
+          <label><input type="checkbox" value="архітектура"><span>Архітектура</span></label>
+          <label><input type="checkbox" value="музеї"><span>Музеї</span></label>
+          <label><input type="checkbox" value="місцева кухня"><span>Їжа</span></label>
+          <label><input type="checkbox" value="природа і парки"><span>Природа</span></label>
+          <label><input type="checkbox" value="кава"><span>Кава</span></label>
+          <label><input type="checkbox" value="нічне життя"><span>Вечори</span></label>
+        </div>
+      </fieldset>
+      <button id="submit" type="submit">Скласти маршрут</button>
+    </form>
+
+    <p id="status" class="status" hidden></p>
+
+    <section id="result" hidden>
+      <div class="result-head">
+        <div>
+          <h2 id="city-name"></h2>
+          <p id="summary" class="muted"></p>
+        </div>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="layout">
+        <ol id="stops" class="stops"></ol>
+        <div id="map"></div>
+      </div>
+      <div class="card tips">
+        <h3>Поради</h3>
+        <ul id="tips"></ul>
+      </div>
+      <p class="muted small" id="model"></p>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
