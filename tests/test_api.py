@@ -149,3 +149,45 @@ def test_bad_key_is_not_retried(monkeypatch):
     with pytest.raises(gemini_client.GeminiError, match="GEMINI_API_KEY"):
         asyncio.run(gemini_client.generate_plan(PlanRequest(city="Львів", days=1), LVIV))
     assert len(fake.calls) == 1
+
+
+def test_geocoder_falls_back_to_photon(monkeypatch):
+    import httpx
+    geocoding._cache.clear()
+
+    async def blocked(client, name):
+        raise httpx.HTTPError("629 Unknown Error")
+
+    async def photon(client, name):
+        return LVIV
+
+    monkeypatch.setattr(geocoding, "_nominatim", blocked)
+    monkeypatch.setattr(geocoding, "_photon", photon)
+    assert asyncio.run(geocoding.geocode_city("Львів")) == LVIV
+
+
+def test_geocoder_both_down_gives_friendly_error(monkeypatch):
+    import httpx
+    geocoding._cache.clear()
+
+    async def blocked(client, name):
+        raise httpx.HTTPError("down")
+
+    monkeypatch.setattr(geocoding, "_nominatim", blocked)
+    monkeypatch.setattr(geocoding, "_photon", blocked)
+    with pytest.raises(geocoding.GeocodingError, match="тимчасово недоступний"):
+        asyncio.run(geocoding.geocode_city("Львів"))
+
+
+def test_geocoder_uses_cache(monkeypatch):
+    geocoding._cache.clear()
+    calls = []
+
+    async def nominatim(client, name):
+        calls.append(name)
+        return LVIV
+
+    monkeypatch.setattr(geocoding, "_nominatim", nominatim)
+    asyncio.run(geocoding.geocode_city("Львів"))
+    asyncio.run(geocoding.geocode_city(" львів "))
+    assert calls == ["Львів"]

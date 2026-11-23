@@ -8,7 +8,7 @@
 
 ```
 Браузер ──POST /api/plan──► FastAPI (Render)
-                              │ 1. Nominatim (OpenStreetMap): чи існує місто, його центр і межі
+                              │ 1. Nominatim або Photon (OpenStreetMap): чи існує місто, його центр і межі
                               │ 2. Gemini API: маршрут у форматі JSON за Pydantic-схемою
                               │ 3. Перевірка: чи лежать точки від Gemini в межах міста
 Браузер ◄────── JSON ─────────┘ → список місць по днях + мапа Leaflet
@@ -18,7 +18,7 @@
 |---|---|
 | `app/main.py` | FastAPI: сторінка `/`, `GET /api/health`, `POST /api/plan` |
 | `app/gemini_client.py` | Промпт і виклик Gemini (`google-genai`, structured output) |
-| `app/geocoding.py` | Пошук міста через Nominatim, перевірка координат |
+| `app/geocoding.py` | Пошук міста через Nominatim (запасний — Photon), кеш, перевірка координат |
 | `app/models.py` | Pydantic-моделі запиту, схеми Gemini та відповіді |
 | `app/static/` | Сторінка з формою та мапою (Leaflet + тайли OpenStreetMap) |
 | `tests/` | pytest із підставними відповідями Gemini та OSM |
